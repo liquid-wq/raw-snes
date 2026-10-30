@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>RAW-SNES — RetroAchievements on Real Super Nintendo Hardware via FXPak Pro</title>
+<meta name="author" content="Liqui">
+<meta name="description" content="RAW-SNES brings RetroAchievements to real Super Nintendo hardware using the FXPak Pro. No emulator, no ROM patch. The cartridge mirrors the console's work RAM live. Free to use.">
+<link rel="canonical" href="https://liquid-wq.github.io/raw-snes/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RAW-SNES">
+<meta property="og:title" content="RAW-SNES — RetroAchievements on Real Super Nintendo Hardware">
+<meta property="og:description" content="Earn RetroAchievements while playing on an actual Super Nintendo, over USB from an FXPak Pro. No emulator, no ROM patch.">
+<meta property="og:url" content="https://liquid-wq.github.io/raw-snes/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="RAW-SNES — RetroAchievements on Real Super Nintendo Hardware">
+<meta name="twitter:description" content="Earn RetroAchievements while playing on an actual Super Nintendo, over USB from an FXPak Pro.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+/* Wie die Schwesterseiten: CRT-Bildschirm, eine Leuchtfarbe je Konsole (hier das
+   Violett der Super Nintendo), dazu die vier Tastenfarben der Super Famicom als
+   Akzent. */
+:root{
+  --bg:#08060c;
+  --bg-card:#0e0b14;
+  --line:#211a2e;
+  --line-hot:#3a2c55;
+  --violet:#b49cff;         /* primary phosphor */
+  --violet-dim:#7a6a9e;
+  --ink:#dcd6e6;
+  --ink-dim:#7f7691;
+  --port0:#ff5f6d;          /* A, red */
+  --port1:#ffd23f;          /* B, yellow */
+  --port2:#4aa8ff;          /* X, blue */
+  --port3:#3ddc84;          /* Y, green */
+  --maxw:960px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:'JetBrains Mono',ui-monospace,'IBM Plex Mono',monospace;
+  font-size:16px;line-height:1.75;-webkit-font-smoothing:antialiased;
+  position:relative;overflow-x:hidden;
+}
+/* CRT scanlines */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9;
+  background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0 2px,rgba(0,0,0,.28) 2px 3px);
+  mix-blend-mode:multiply;
+}
+/* subtle vignette */
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:8;
+  background:radial-gradient(ellipse at 50% 40%,transparent 55%,rgba(0,0,0,.55) 100%);
+}
+.wrap{
+  max-width:var(--maxw);margin:0 auto;position:relative;z-index:1;
+  padding-left:max(22px,env(safe-area-inset-left,0px));
+  padding-right:max(22px,env(safe-area-inset-right,0px));
+}
+
+a:focus-visible,button:focus-visible{outline:2px solid var(--violet);outline-offset:3px}
+
+/* ---------- markers ---------- */
+.eyebrow{
+  font-size:13px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--violet-dim);margin:0;
+}
+.eyebrow .slash{color:var(--port0);font-weight:700}
+.eyebrow em{font-style:normal;color:var(--violet)}
+h2{
+  font-size:clamp(19px,3.2vw,26px);letter-spacing:.14em;text-transform:uppercase;
+  font-weight:500;color:var(--ink-dim);margin:52px 0 26px;text-wrap:balance;
+}
+h2::before{content:'# ';color:var(--port1);font-weight:700}
+
+/* ---------- hero ---------- */
+.hero{padding:54px 0 20px}
+/* Logo: CRT-Einschalten einmalig, danach laufen die vier Tastenfarben der Reihe
+   nach ueber den Schriftzug. */
+.logo{
+  font-family:'Press Start 2P',monospace;
+  font-size:clamp(28px,7.4vw,64px);line-height:1.15;letter-spacing:.02em;
+  margin:22px 0 0;position:relative;display:inline-block;
+  color:var(--violet);
+  text-shadow:0 0 8px rgba(180,156,255,.55),0 0 26px rgba(180,156,255,.3);
+  animation:crt-on 1s cubic-bezier(.2,.7,.3,1) both,flicker 7s 1.1s infinite steps(1);
+}
+@keyframes crt-on{
+  0%{transform:scaleY(.012) scaleX(1.25);filter:brightness(3);opacity:0}
+  22%{transform:scaleY(.012) scaleX(1.25);filter:brightness(3);opacity:1}
+  55%{transform:scaleY(1) scaleX(1);filter:brightness(1.7)}
+  100%{transform:scaleY(1) scaleX(1);filter:brightness(1)}
+}
+@keyframes flicker{0%,96%,100%{opacity:1}97%{opacity:.82}98%{opacity:1}99%{opacity:.9}}
+
+.logo__buttons{
+  position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(100deg,
+    transparent 0%,transparent 30%,
+    var(--port0) 36%,var(--port1) 42%,var(--port2) 48%,var(--port3) 54%,
+    transparent 60%,transparent 100%);
+  background-size:280% 100%;background-repeat:no-repeat;
+  -webkit-background-clip:text;background-clip:text;
+  color:transparent;text-shadow:none;
+  animation:buttons 7s 1.4s cubic-bezier(.45,0,.55,1) infinite;
+}
+@keyframes buttons{
+  0%{background-position:120% 0;opacity:0}
+  8%{opacity:1}
+  46%{background-position:-20% 0;opacity:1}
+  54%{background-position:-20% 0;opacity:0}
+  100%{background-position:-20% 0;opacity:0}
+}
+@media (prefers-reduced-motion:reduce){
+  .logo{animation:none}
+  .logo__buttons{display:none}
+}
+.lede{
+  font-size:clamp(17px,2.3vw,21px);line-height:1.75;max-width:52ch;margin:30px 0 0;
+}
+.lede b{color:var(--violet);font-weight:500}
+.lede--klein{font-size:15px;margin-top:-6px;opacity:.9}
+.lede a{color:inherit;text-decoration:underline;text-underline-offset:3px}
+.lede .hot{color:var(--port1);font-weight:500}
+
+.cta-row{display:flex;flex-wrap:wrap;gap:14px;margin:34px 0 0}
+.btn{
+  display:inline-block;padding:14px 26px;text-decoration:none;font-size:15px;
+  border:1px solid var(--line-hot);color:var(--ink-dim);background:transparent;
+  transition:color .14s,border-color .14s,box-shadow .14s;
+}
+.btn:hover{color:var(--violet);border-color:var(--violet);box-shadow:0 0 14px rgba(180,156,255,.18)}
+.btn--go{color:var(--violet);border-color:var(--violet)}
+.btn--go:hover{box-shadow:0 0 20px rgba(180,156,255,.3)}
+
+/* ---------- signal diagram ---------- */
+.diagram{
+  margin:52px 0 0;border:1px solid var(--line);background:var(--bg-card);padding:20px 18px 8px;
+}
+.diagram__title{font-size:13px;color:var(--ink-dim);letter-spacing:.06em;margin:0 0 6px}
+.diagram__scroll{overflow-x:auto}
+.diagram svg{width:100%;min-width:560px;height:auto;display:block}
+.lane-label{font-family:'JetBrains Mono',monospace;font-size:9.5px;fill:var(--ink-dim);letter-spacing:.08em}
+.node-label{font-family:'JetBrains Mono',monospace;font-size:9px;fill:var(--violet-dim);letter-spacing:.06em}
+.node-label--hot{fill:var(--violet)}
+.wire{stroke:var(--line-hot);stroke-width:1;fill:none}
+.wire--live{stroke:var(--violet);opacity:.55}
+.wire--p0{stroke:var(--port0);opacity:.6}
+.wire--p1{stroke:var(--port1);opacity:.6}
+.wire--p2{stroke:var(--port2);opacity:.6}
+.wire--p3{stroke:var(--port3);opacity:.6}
+.box{stroke:var(--violet);stroke-width:1;fill:none;opacity:.85}
+.box--dim{stroke:var(--line-hot);stroke-width:1;fill:none}
+.dot{fill:var(--violet)}
+.pulse{fill:var(--violet)}
+.pulse--white{fill:#f1ecff}
+.p0{fill:var(--port0)}.p1{fill:var(--port1)}.p2{fill:var(--port2)}.p3{fill:var(--port3)}
+.note{font-family:'JetBrains Mono','Segoe UI Symbol','Noto Sans Symbols 2',sans-serif;font-size:13px;fill:var(--port1)}
+.eq{fill:var(--port1);opacity:.85}
+.icon{fill:none;stroke:var(--ink-dim);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.node{fill:var(--violet)}
+/* Tonpfad: die Musik als Welle */
+.console{fill:none;stroke:var(--ink-dim);stroke-width:1.3;stroke-linejoin:round;stroke-linecap:round}
+.speaker-wave{fill:none;stroke:var(--port1);stroke-width:1.4;stroke-linecap:round}
+.strand{fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.s0{stroke:var(--port0)}.s1{stroke:var(--port1)}.s2{stroke:var(--port2)}.s3{stroke:var(--port3)}
+#tp-live{transition:opacity .35s}
+.capture{fill:rgba(180,156,255,.07);stroke:var(--violet);stroke-width:1.2}
+.card-shape{fill:none;stroke:var(--line-hot);stroke-width:1.3;transition:stroke .3s,fill .3s}
+.card-shape--hot{stroke:var(--violet);fill:rgba(180,156,255,.1)}
+.card-pins{stroke:var(--line-hot);stroke-width:1.3}
+.tp-on{fill:var(--port1)}
+.slot{fill:none;stroke:var(--line-hot);stroke-width:1.1;transition:fill .2s,stroke .2s}
+.slot--on{fill:var(--violet);stroke:var(--violet)}
+.tp-stamp{fill:var(--violet)}
+/* Leitungen zeichnen sich beim Laden einmal ein (pathLength="1") */
+.draw{stroke-dasharray:1;stroke-dashoffset:0;animation:draw 1.5s cubic-bezier(.3,.6,.3,1) both}
+.draw--late{animation-delay:.45s}
+.draw--later{animation-delay:.9s}
+@keyframes draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+/* Der untere Teil des FPGA-Kastens leuchtet leicht */
+.box-glow{fill:var(--violet);opacity:.06;animation:breathe 2.6s ease-in-out infinite}
+@keyframes breathe{0%,100%{opacity:.04}50%{opacity:.13}}
+@media (prefers-reduced-motion:reduce){
+  .draw{animation:none}
+  .box-glow{animation:none}
+}
+
+/* ---------- cards ---------- */
+.cards{display:grid;gap:16px;margin:28px 0 0}
+@media(min-width:740px){.cards--2{grid-template-columns:1fr 1fr}}
+.card{border:1px solid var(--line);background:var(--bg-card);padding:22px 22px 24px;min-width:0}
+.card h3{font-size:16px;color:var(--violet);font-weight:500;margin:0 0 10px;letter-spacing:.02em}
+.card p{margin:0;color:var(--ink-dim);font-size:14.5px;line-height:1.7}
+.card p b{color:var(--ink);font-weight:500}
+.card p + p{margin-top:12px}
+.card p.tag{margin-top:18px;color:var(--port1);font-size:11px;line-height:1.4;padding:6px 12px}
+.card--hot{border-color:var(--line-hot)}
+.card--hot h3{color:var(--port1)}
+/* Die Neuheit: vier Punkte in den Tastenfarben, angeordnet wie A/B/X/Y */
+.first{padding-top:26px}
+.first h3{font-size:clamp(17px,2.4vw,21px)}
+.first__dots{position:relative;width:34px;height:34px;margin:0 0 14px}
+.first__dots i{position:absolute;width:10px;height:10px;border-radius:50%}
+.first__dots .d0{background:var(--port0);right:0;top:12px}
+.first__dots .d1{background:var(--port1);left:12px;bottom:0}
+.first__dots .d2{background:var(--port2);left:12px;top:0}
+.first__dots .d3{background:var(--port3);left:0;top:12px}
+
+p.body{max-width:64ch;margin:0 0 22px}
+p.body b{color:var(--ink);font-weight:500}
+p.body a{color:var(--violet);text-decoration:none;border-bottom:1px solid var(--line-hot)}
+p.body a:hover{border-color:var(--violet)}
+
+/* ---------- menu mock: so sieht das Menue auf der Konsole aus ---------- */
+.screen{
+  margin:26px 0 0;border:1px solid var(--line-hot);background:#1b2a8a;
+  font-family:'Press Start 2P',monospace;font-size:clamp(8px,1.5vw,12px);line-height:2.1;
+  color:#f4f4f4;padding:20px 22px 18px;max-width:560px;
+  box-shadow:0 0 34px rgba(76,100,255,.18) inset;
+}
+.screen__title{text-align:center;margin:0}
+.screen__rule{border:0;border-top:3px double #f4f4f4;margin:10px 0 14px;opacity:.9}
+.screen__grid{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
+.screen__grid p{margin:0;white-space:nowrap}
+.screen__wait{text-align:center;margin:14px 0 0;animation:wait 1.07s steps(1) infinite}
+@keyframes wait{0%{opacity:1}50%{opacity:0}}
+.screen__keys{margin:12px 0 0;opacity:.8}
+figcaption{color:var(--ink-dim);font-size:13px;margin-top:12px}
+
+/* ---------- tag ---------- */
+.tag{
+  display:inline-block;border:1px solid var(--port1);color:var(--port1);
+  padding:7px 14px;font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;
+  margin:44px 0 0;
+}
+
+/* ---------- spec ---------- */
+.spec{margin:0;border:1px solid var(--line);background:var(--bg-card)}
+.spec div{display:grid;grid-template-columns:180px 1fr;gap:14px;padding:13px 20px;border-bottom:1px solid var(--line)}
+.spec div:last-child{border-bottom:none}
+.spec dt{margin:0;color:var(--ink-dim);font-size:13px;letter-spacing:.14em;text-transform:uppercase}
+.spec dd{margin:0;font-size:15px;color:var(--ink)}
+@media(max-width:620px){.spec div{grid-template-columns:1fr;gap:2px}}
+
+/* ---------- download ---------- */
+.dl h3{font-size:17px;color:var(--port1);margin:0 0 12px;font-weight:500}
+.dl p{color:var(--ink-dim);font-size:14.5px;line-height:1.7;margin:0 0 18px}
+.dl p b{color:var(--ink);font-weight:500}
+.dl a{color:var(--violet);font-size:14.5px;text-decoration:none;border-bottom:1px solid var(--line-hot)}
+.dl a:hover{border-color:var(--violet)}
+
+footer{border-top:1px solid var(--line);margin-top:70px;padding:38px 0 64px;color:var(--ink-dim);font-size:14.5px}
+footer p{max-width:64ch;margin:0 0 12px}
+footer a{color:var(--violet);text-decoration:none;border-bottom:1px solid var(--line-hot)}
+footer a:hover{border-color:var(--violet)}
+
+/* Zurueck zur Uebersicht, oben links */
+.back{
+  position:fixed;z-index:10;font-size:13px;letter-spacing:.06em;color:var(--violet-dim);text-decoration:none;
+  top:calc(14px + env(safe-area-inset-top,0px));left:calc(16px + env(safe-area-inset-left,0px));
+  border:1px solid var(--line-hot);background:rgba(8,6,12,.85);padding:6px 12px;transition:color .14s,border-color .14s;
+}
+.back:hover,.back:focus-visible{color:var(--violet);border-color:var(--violet)}
+</style>
+</head>
+<body>
+<a class="back" href="https://liquid-wq.github.io/" aria-label="Back to all projects">&larr; All projects</a>
+
+<main class="wrap">
+
+  <section class="hero">
+    <p class="eyebrow"><span class="slash">//</span> <em>Super Nintendo</em> &middot; <em>Super Famicom</em> &middot; <em>FXPak Pro</em></p>
+    <h1 class="logo">RAW-SNES<span class="logo__buttons" aria-hidden="true">RAW-SNES</span></h1>
+    <p class="lede">
+      RetroAchievements on <b>real Super Nintendo hardware</b> &mdash; no emulator, no ROM
+      patch. One program that talks to the cartridge directly over USB.
+    </p>
+    <p class="lede lede--klein">
+      The <a href="#built">master version</a> is finished as well: <span class="hot">save states that keep
+      their sound</span>, right on the console. It is not released yet for licensing reasons.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn--go" href="https://github.com/liquid-wq/raw-snes/releases">Get RAW-SNES</a>
+      <a class="btn" href="https://github.com/liquid-wq/raw-snes">View on GitHub</a>
+      <a class="btn" href="#how">How it works</a>
+    </div>
+
+
+    <div class="diagram">
+      <p class="diagram__title">live signal path &mdash; the whole time you play</p>
+      <div class="diagram__scroll">
+      <svg viewBox="0 0 720 120" role="img" aria-label="The 65816 writes to work RAM, the FPGA on the FXPak Pro mirrors every write, and the PC reads the mirror over USB to check achievements.">
+        <circle class="dot" cx="40" cy="62" r="3"/>
+        <text class="node-label node-label--hot" x="40" y="86" text-anchor="middle">65816</text>
+        <text class="node-label" x="40" y="99" text-anchor="middle">S-CPU</text>
+
+        <path class="wire draw" pathLength="1" d="M40 62 H300"/>
+        <path class="wire wire--live draw draw--late" pathLength="1" d="M190 62 H300"/>
+        <text class="node-label" x="72" y="54">WRITES TO WORK RAM $7E:0000</text>
+        <path class="wire draw" pathLength="1" d="M150 62 V36 H186"/>
+        <path class="wire draw" pathLength="1" d="M186 26 H262 V46 H186 Z"/>
+        <text class="node-label" x="224" y="39" text-anchor="middle">WRAM 128K</text>
+
+        <circle class="pulse" r="3.5">
+          <animateMotion dur="2.6s" repeatCount="indefinite" path="M40 62 H300"/>
+          <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.08;.9;1" dur="2.6s" repeatCount="indefinite"/>
+        </circle>
+        <circle class="pulse" r="2" opacity=".45">
+          <animateMotion dur="2.6s" begin="-0.16s" repeatCount="indefinite" path="M40 62 H300"/>
+        </circle>
+
+        <path class="box draw" pathLength="1" d="M300 30 H450 V104 H300 Z"/>
+        <text class="lane-label" x="375" y="22" text-anchor="middle" style="fill:#b49cff">FXPAK PRO &middot; FPGA</text>
+        <text class="node-label node-label--hot" x="314" y="58">WRAM MIRROR</text>
+        <text class="node-label" x="314" y="72">every write,</text>
+        <text class="node-label" x="314" y="84">copied as it lands</text>
+
+        <path class="wire wire--live draw draw--later" pathLength="1" d="M450 62 H604"/>
+        <text class="node-label" x="514" y="54">USB</text>
+        <circle class="pulse pulse--white" r="3">
+          <animateMotion dur="1.3s" repeatCount="indefinite" path="M450 62 H604"/>
+          <animate attributeName="opacity" values="0;1;1;0" dur="1.3s" repeatCount="indefinite"/>
+        </circle>
+        <path class="box--dim draw draw--later" pathLength="1" d="M604 40 H712 V84 H604 Z"/>
+        <text class="node-label node-label--hot" x="658" y="60" text-anchor="middle">PC</text>
+        <text class="node-label" x="658" y="74" text-anchor="middle">checks unlocks</text>
+      </svg>
+      </div>
+    </div>
+  </section>
+
+  <section id="what">
+    <h2>What it is</h2>
+    <p class="body">
+      RAW-SNES connects a physical Super Nintendo, an FXPak Pro and RetroAchievements.
+      Achievements trigger from the actual console state, read from the console's work RAM
+      while you play. <b>The game's ROM is never changed.</b>
+    </p>
+  </section>
+
+  <section id="how">
+    <h2>How it works</h2>
+    <p class="body">
+      The FPGA on the FXPak Pro sits on the cartridge bus. Every time the console's CPU writes
+      to its work RAM, the FPGA writes the same value into a mirror of its own. The program on
+      your PC reads that mirror over USB and <b>evaluates the achievement conditions as the
+      game runs.</b> For games without an enhancement chip, nothing runs on the console at all.
+    </p>
+
+    <div class="cards cards--2">
+      <div class="card">
+        <h3>Work RAM, mirrored live</h3>
+        <p>All 128 KB of work RAM are copied as they are written, by the cartridge itself.
+        The console does no extra work for it, so games run at full speed.</p>
+      </div>
+      <div class="card">
+        <h3>The game names itself</h3>
+        <p>The program reads the ROM from the cartridge over USB, identifies it and loads its
+        RetroAchievements set. In normal use there is nothing to select and no folder to
+        point at.</p>
+      </div>
+      <div class="card">
+        <h3>Enhancement chips</h3>
+        <p>For SA-1, Super FX, Cx4 and S-DD1 games the cartridge keeps no copy of work RAM.
+        There the console copies the values RAW-SNES needs once per frame, through the
+        cartridge's in-game hook. <b>Tested on hardware with all four.</b> Because of a limit of the
+        cartridge's original firmware, some of these games are only partly supported: not every achievement is
+        monitored at once. The others are only monitored once unlocks free up room, and anything
+        you achieve for them before that does not count. The program shows this in red. Full
+        support is in the master version (<a href="#built">see below</a>). DSP games work like
+        games without a chip.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="hardcore">
+    <p class="tag">Hardcore mode</p>
+    <h2>Not available yet</h2>
+    <p class="body">
+      RetroAchievements only counts Hardcore unlocks from clients it has approved, and a
+      client has to be publicly available for at least six months before it can be
+      considered. Until then, every unlock is recorded as Softcore.
+    </p>
+  </section>
+
+  <section id="limits">
+    <h2>Known limits</h2>
+    <p class="body">
+      Games with an enhancement chip need the in-game hook turned on in the cartridge's
+      settings. Because of a limit of the cartridge's original firmware, some of them are only
+      partly supported; the program shows this in red. Full support is in the master
+      version (<a href="#built">see below</a>). DSP games need the DSP firmware files in the cartridge's <b>sd2snes</b>
+      folder; without them the game hangs, with or without RAW-SNES. The SD2SNES runs the
+      same firmware and should work, but has not been tested.
+    </p>
+  </section>
+
+  <section id="requirements">
+    <h2>Requirements</h2>
+    <dl class="spec">
+      <div><dt>Cartridge</dt><dd>FXPak Pro, tested on Rev. Z with firmware 1.11.2</dd></div>
+      <div><dt>Console</dt><dd>Original Super Nintendo or Super Famicom</dd></div>
+      <div><dt>Connection</dt><dd>USB cable between cartridge and PC</dd></div>
+      <div><dt>Platform</dt><dd>Windows</dd></div>
+      <div><dt>Account</dt><dd>Free RetroAchievements account</dd></div>
+    </dl>
+  </section>
+
+  <section id="download">
+    <h2>Download</h2>
+    <div class="cards">
+      <div class="card card--hot dl">
+        <h3>RAW-SNES</h3>
+        <p><b>Unpack, double-click, done.</b> A single executable, nothing to install.
+        Automatic game detection, achievement list, unlock card with badge, enhancement chip
+        support, live values, English and German.</p>
+        <a href="https://github.com/liquid-wq/raw-snes/releases">Latest release ›</a>
+      </div>
+    </div>
+    <p class="body" style="margin-top:24px">Setup instructions are on GitHub.</p>
+  </section>
+
+  <section id="built">
+    <p class="tag">Master version &middot; not released yet</p>
+    <h2>The master version</h2>
+    <p class="body">
+      The master version is finished and runs on real hardware. It adds save states with
+      sound and a menu right on the console, and full support for every enhancement chip game.
+      Unresolved licensing questions currently keep it from being released. <b>To be continued.</b>
+    </p>
+
+    <div class="diagram">
+      <p class="diagram__title">save state path &mdash; the music is part of the state</p>
+      <div class="diagram__scroll">
+      <svg id="tonpfad" viewBox="0 0 720 300" role="img" aria-label="Music flows from the Super Nintendo to the speaker as a wave of four strands in red, yellow, blue and green. Start plus R: a frame snaps around a piece of the wave, the game and its music hold still, and the captured piece sinks into the selected slot on the SD card, stamped with date and time. Load: the piece rises back into its place and the wave plays on exactly where it was.">
+
+        <!-- Konsole -->
+        <g class="console">
+          <rect x="10" y="94" width="58" height="32" rx="4"/>
+          <path d="M24 94 V86 H54 V94"/>
+          <circle class="p2" cx="54" cy="106" r="2.4"/>
+          <circle class="p3" cx="50" cy="110" r="2.4"/>
+          <circle class="p0" cx="58" cy="110" r="2.4"/>
+          <circle class="p1" cx="54" cy="114" r="2.4"/>
+          <path d="M20 110 H34"/>
+        </g>
+        <text class="node-label node-label--hot" x="39" y="146" text-anchor="middle">SUPER</text>
+        <text class="node-label node-label--hot" x="39" y="158" text-anchor="middle">NINTENDO</text>
+        <text id="tp-start" class="node-label tp-flash" x="39" y="176" text-anchor="middle" opacity=".25">START + R</text>
+
+        <!-- Lautsprecher -->
+        <g class="console">
+          <path d="M676 102 H684 L694 92 V128 L684 118 H676 Z"/>
+        </g>
+        <path id="tp-w1" class="speaker-wave" d="M700 102 Q706 110 700 118"/>
+        <path id="tp-w2" class="speaker-wave" d="M705 96 Q714 110 705 124"/>
+        <text class="node-label node-label--hot" x="688" y="146" text-anchor="middle">MUSIC</text>
+
+        <!-- die Musik: vier Straenge in den Tastenfarben -->
+        <g id="tp-live">
+          <path id="tp-s0" class="strand s0" d=""/>
+          <path id="tp-s1" class="strand s1" d=""/>
+          <path id="tp-s2" class="strand s2" d=""/>
+          <path id="tp-s3" class="strand s3" d=""/>
+        </g>
+
+        <!-- Rahmen, der ein Stueck einfaengt -->
+        <rect id="tp-frame" class="capture" x="330" y="70" width="120" height="80" opacity="0"/>
+        <text id="tp-save" class="node-label node-label--hot" x="390" y="62" text-anchor="middle" opacity="0">SAVE &middot; game + music</text>
+        <text id="tp-load" class="node-label node-label--hot" x="390" y="62" text-anchor="middle" opacity="0">LOAD</text>
+
+        <!-- das eingefangene Stueck -->
+        <g id="tp-copy" opacity="0">
+          <path id="tp-c0" class="strand s0" d=""/>
+          <path id="tp-c1" class="strand s1" d=""/>
+          <path id="tp-c2" class="strand s2" d=""/>
+          <path id="tp-c3" class="strand s3" d=""/>
+          <rect class="capture" x="330" y="70" width="120" height="80"/>
+        </g>
+
+        <!-- SD-Karte -->
+        <path id="tp-card" class="card-shape" d="M366 220 H406 L416 230 V276 H366 Z"/>
+        <path class="card-pins" d="M374 220 V230 M382 220 V230 M390 220 V230 M398 220 V230"/>
+        <text class="node-label node-label--hot" x="436" y="236">SD CARD &middot; NO PC</text>
+        <!-- vier Plaetze, der gewaehlte leuchtet; beim Speichern erscheint Datum und Uhrzeit -->
+        <rect id="tp-sl0" class="slot" x="436" y="244" width="12" height="8"/>
+        <rect id="tp-sl1" class="slot" x="452" y="244" width="12" height="8"/>
+        <rect id="tp-sl2" class="slot" x="468" y="244" width="12" height="8"/>
+        <rect id="tp-sl3" class="slot" x="484" y="244" width="12" height="8"/>
+        <text id="tp-slot" class="node-label" x="504" y="251">&lt; SLOT 1 &gt;</text>
+        <text id="tp-stamp" class="node-label tp-stamp" x="436" y="268" opacity="0">29.10.2026 &middot; 13:10</text>
+
+        <text id="tp-on" class="node-label tp-on" x="688" y="176" text-anchor="middle" opacity="0">plays on, right</text>
+        <text id="tp-on2" class="node-label tp-on" x="688" y="188" text-anchor="middle" opacity="0">where it was</text>
+
+        <text class="lane-label" x="0" y="292">the ROM is never patched &middot; save states keep their music</text>
+      </svg>
+      </div>
+    </div>
+
+    <div class="cards cards--2">
+      <div class="card card--hot first">
+        <p class="first__dots" aria-hidden="true"><i class="d0"></i><i class="d1"></i><i class="d2"></i><i class="d3"></i></p>
+        <h3>Save states that keep their sound</h3>
+        <p>RAW-SNES saves and loads the game <b>together with its sound</b>, on a real Super
+        Nintendo. Load a state and the music plays on exactly where it was, right on the
+        console, without a PC.</p>
+        <p>Four slots, each with the date and time it was saved. Flip through them with left
+        and right and <b>see which slot you are on</b> before you save or load.</p>
+      </div>
+      <div class="card card--hot">
+        <h3>A menu on the console</h3>
+        <p>Start + R opens a menu on the console itself: continue, save, load or exit. The
+        selected slot is always on screen, and you pick it with left and right. Every save
+        is <b>stamped with date and time</b>, so you see at a glance what is in each slot.
+        The state goes to the SD card, <b>no PC involved</b>, and the music carries on where
+        it was.</p>
+      </div>
+      <div class="card">
+        <h3>Every achievement on enhancement chip games</h3>
+        <p>Full coverage for SA-1, Super FX, Cx4 and S-DD1 games: <b>all achievements at
+        once</b>, every frame, with nothing running on the console.</p>
+      </div>
+    </div>
+
+    <figure>
+      <div class="screen" role="img" aria-label="The save state menu on the console: Continue, Save, Load and Exit on the left, slot 1 with date and time on the right, and a blinking hint at the bottom.">
+        <p class="screen__title">SUPER MARIOWORLD</p>
+        <hr class="screen__rule">
+        <div class="screen__grid">
+          <p>&nbsp;&nbsp;CONTINUE</p><p>&lt; SLOT 1 &gt;</p>
+          <p>&gt; SAVE</p><p>29.10.2026</p>
+          <p>&nbsp;&nbsp;LOAD</p><p>13:10</p>
+          <p>&nbsp;&nbsp;EXIT</p><p></p>
+        </div>
+        <p class="screen__wait">PLEASE WAIT - PREPARING SOUND</p>
+      </div>
+      <figcaption>The menu on the console after Start + R: the selected slot on the right,
+      with the date and time of its save.</figcaption>
+    </figure>
+  </section>
+
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>
+      RAW-SNES is free to use. The source is public to read and audit, but it is not open
+      source &mdash; see the
+      <a href="https://github.com/liquid-wq/raw-snes/blob/main/LICENSE">license</a>.
+      RAW-SNES talks to the FXPak Pro over its own USB interface and is not affiliated with
+      the makers of the cartridge or its firmware.
+    </p>
+    <p>There are counterparts for the NES, the Mega Drive and the Saturn too: <a href="https://liquid-wq.github.io/raw-nes/">RAW-NES</a>, <a href="https://liquid-wq.github.io/mega-raw/">MEGA-RAW</a> and <a href="https://liquid-wq.github.io/raw-turn/">RAW-TURN</a>.</p>
+    <p>Built by <a href="https://github.com/liquid-wq">Liqui</a>.</p>
+  </div>
+</footer>
+
+<script>
+/* Tonpfad: die Musik als Welle aus vier Straengen. Ein Kreislauf von 9 s:
+   spielen, Start + R faengt ein Stueck ein (alles haelt an), das Stueck sinkt in die
+   SD-Karte, steigt wieder auf und die Welle laeuft an derselben Stelle weiter. */
+(function () {
+  var svg = document.getElementById('tonpfad');
+  if (!svg) return;
+  var $ = function (id) { return document.getElementById(id); };
+  var X0 = 80, X1 = 668, CY = 110, FX0 = 330, FX1 = 450;
+  var STR = [
+    { a: 15, l: 118, p: 0.0 },
+    { a: 11, l: 76,  p: 1.7 },
+    { a: 8,  l: 54,  p: 3.1 },
+    { a: 13, l: 152, p: 4.4 }
+  ];
+  var SPEED = 70;                       /* Bildpunkte je Sekunde Musik */
+  var T = 9;                            /* Laenge eines Kreislaufs in s */
+  /* Zeitplan in s: Einfangen, Absinken, in der Karte, Aufsteigen, Einsetzen */
+  var S_CAP = 2.6, S_DOWN = 3.0, S_IN = 3.9, S_UP = 5.0, S_SET = 5.9, S_ON = 6.1;
+
+  function welle(i, xa, xb, musik) {
+    var s = STR[i], d = '', x, y, env;
+    for (x = xa; x <= xb; x += 3) {
+      env = Math.pow(Math.sin(Math.PI * (x - X0) / (X1 - X0)), 0.7);
+      y = CY + s.a * env * Math.sin(2 * Math.PI * (x - SPEED * musik) / s.l + s.p);
+      d += (d ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
+    }
+    return d;
+  }
+  function weich(u) { u = Math.max(0, Math.min(1, u)); return u * u * (3 - 2 * u); }
+
+  var live = [$('tp-s0'), $('tp-s1'), $('tp-s2'), $('tp-s3')];
+  var kopie = [$('tp-c0'), $('tp-c1'), $('tp-c2'), $('tp-c3')];
+  var liveG = $('tp-live'), copyG = $('tp-copy'), frame = $('tp-frame');
+  var lSave = $('tp-save'), lLoad = $('tp-load'), lStart = $('tp-start');
+  var on1 = $('tp-on'), on2 = $('tp-on2'), w1 = $('tp-w1'), w2 = $('tp-w2'), card = $('tp-card');
+  var slots = [$('tp-sl0'), $('tp-sl1'), $('tp-sl2'), $('tp-sl3')], lSlot = $('tp-slot'), stamp = $('tp-stamp');
+  var platzNr = -1;
+
+  /* Musikzeit: laeuft beim Spielen, steht vom Einfangen bis zum Einsetzen. Pro
+     Kreislauf laeuft sie (T - (S_SET - S_CAP)) s weiter. */
+  var LAUF = T - (S_SET - S_CAP);
+  function musikzeit(t) {
+    var n = Math.floor(t / T), u = t - n * T;
+    var m = n * LAUF;
+    if (u < S_CAP) return m + u;
+    if (u < S_SET) return m + S_CAP;
+    return m + S_CAP + (u - S_SET);
+  }
+
+  function zeichne(t) {
+    var u = t % T, m = musikzeit(t), i;
+    var steht = u >= S_CAP && u < S_SET;
+    for (i = 0; i < 4; i++) live[i].setAttribute('d', welle(i, X0, X1, m));
+    liveG.style.opacity = steht ? 0.32 : 1;
+
+    /* Rahmen: schnappt beim Einfangen zu, oeffnet sich beim Einsetzen */
+    var fo = 0, fs = 1;
+    if (u >= S_CAP - 0.25 && u < S_DOWN) { fo = weich((u - (S_CAP - 0.25)) / 0.25); fs = 1 + 0.5 * (1 - fo); }
+    else if (u >= S_DOWN && u < S_SET) fo = 0.45;
+    else if (u >= S_SET && u < S_ON + 0.3) fo = 1 - weich((u - S_SET) / 0.5);
+    frame.setAttribute('opacity', fo.toFixed(2));
+    frame.setAttribute('transform', 'translate(390 110) scale(' + fs.toFixed(3) + ' 1) translate(-390 -110)');
+
+    /* das eingefangene Stueck: sinkt in die Karte und steigt wieder auf */
+    var co = 0, dy = 0, sc = 1;
+    if (u >= S_DOWN && u < S_IN) { var k = weich((u - S_DOWN) / (S_IN - S_DOWN)); co = 1 - 0.6 * k; dy = 138 * k; sc = 1 - 0.75 * k; }
+    else if (u >= S_IN && u < S_UP) { co = 0.4; dy = 138; sc = 0.25; }
+    else if (u >= S_UP && u < S_SET) { var k2 = weich((u - S_UP) / (S_SET - S_UP)); co = 0.4 + 0.6 * k2; dy = 138 * (1 - k2); sc = 0.25 + 0.75 * k2; }
+    else if (u >= S_CAP && u < S_DOWN) { co = 1; }
+    copyG.setAttribute('opacity', co.toFixed(2));
+    copyG.setAttribute('transform', 'translate(390 ' + (110 + dy).toFixed(1) + ') scale(' + sc.toFixed(3) + ') translate(-390 -110)');
+    if (steht) {
+      var mf = Math.floor(t / T) * LAUF + S_CAP;
+      for (i = 0; i < 4; i++) kopie[i].setAttribute('d', welle(i, FX0, FX1, mf));
+    }
+
+    /* Beschriftungen und Karte */
+    lStart.setAttribute('opacity', (u >= S_CAP - 0.4 && u < S_IN) ? 1 : 0.25);
+    lSave.setAttribute('opacity', (u >= S_CAP && u < S_UP - 0.1) ? 1 : 0);
+    lLoad.setAttribute('opacity', (u >= S_UP && u < S_SET + 0.3) ? 1 : 0);
+    card.classList.toggle('card-shape--hot', u >= S_IN - 0.2 && u < S_UP + 0.3);
+
+    /* Platzwahl: nach Start + R springt die Auswahl von Platz 1 auf Platz 2,
+       beim Ablegen erscheinen Datum und Uhrzeit, beim Laden ist derselbe Platz gewaehlt */
+    var p = (u >= S_CAP + 0.1 && u < S_SET + 0.3) ? 1 : 0;
+    var aktiv = u >= S_CAP - 0.25 && u < S_SET + 0.3;
+    if (p !== platzNr) {
+      platzNr = p;
+      for (i = 0; i < 4; i++) slots[i].classList.toggle('slot--on', i === p);
+      lSlot.textContent = '< SLOT ' + (p + 1) + ' >';
+    }
+    lSlot.setAttribute('opacity', aktiv ? 1 : 0.4);
+    for (i = 0; i < 4; i++) slots[i].setAttribute('opacity', aktiv ? 1 : 0.4);
+    stamp.setAttribute('opacity', (u >= S_IN - 0.2 && u < T - 0.4) ? 1 : 0);
+    var an = (u >= S_SET && u < T - 0.4) ? 1 : 0;
+    on1.setAttribute('opacity', an); on2.setAttribute('opacity', an);
+    var puls = steht ? 0.15 : 0.35 + 0.65 * Math.abs(Math.sin(m * 3.2));
+    w1.setAttribute('opacity', puls.toFixed(2));
+    w2.setAttribute('opacity', (steht ? 0.1 : puls * 0.7).toFixed(2));
+  }
+
+  var ruhig = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (ruhig) { zeichne(1.2); return; }
+  var start = null;
+  function schritt(jetzt) {
+    if (start === null) start = jetzt;
+    zeichne((jetzt - start) / 1000);
+    requestAnimationFrame(schritt);
+  }
+  zeichne(0);
+  requestAnimationFrame(schritt);
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,5 @@
+build/
+bin/
+rawsnes_config.json
+ra_cache_snes.json
+badge_cache/

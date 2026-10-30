@@ -1,0 +1,41 @@
+// ERZEUGT die Ressourcendatei -- nicht direkt bearbeiten, sondern app.rc.in.
+//
+// Programmsymbol und die zwoelf Intro-Bilder stecken in der Exe.
+// Die Pfade setzt CMake ein, weil windres relative Pfade nicht verlaesslich
+// gegen den Ort dieser Datei aufloest.
+
+1 ICON "@ASSETS_DIR@/app.ico"
+
+200 RCDATA "@ASSETS_DIR@/cat/cat00.png"
+201 RCDATA "@ASSETS_DIR@/cat/cat01.png"
+202 RCDATA "@ASSETS_DIR@/cat/cat02.png"
+203 RCDATA "@ASSETS_DIR@/cat/cat03.png"
+204 RCDATA "@ASSETS_DIR@/cat/cat04.png"
+205 RCDATA "@ASSETS_DIR@/cat/cat05.png"
+206 RCDATA "@ASSETS_DIR@/cat/cat06.png"
+207 RCDATA "@ASSETS_DIR@/cat/cat07.png"
+208 RCDATA "@ASSETS_DIR@/cat/cat08.png"
+209 RCDATA "@ASSETS_DIR@/cat/cat09.png"
+210 RCDATA "@ASSETS_DIR@/cat/cat10.png"
+211 RCDATA "@ASSETS_DIR@/cat/cat11.png"
+
+1 VERSIONINFO
+FILEVERSION @VERSION_KOMMA@,@BUILD_NR@
+PRODUCTVERSION @VERSION_KOMMA@,@BUILD_NR@
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040704B0"
+    BEGIN
+      VALUE "FileDescription", "RAW-SNES"
+      VALUE "ProductName", "RAW-SNES"
+      VALUE "FileVersion", "@VERSION_TEXT@ (Build @BUILD_NR@)"
+      VALUE "ProductVersion", "@VERSION_TEXT@"
+      VALUE "LegalCopyright", "(c) 2026 Liqui"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x0407, 1200
+  END
+END
